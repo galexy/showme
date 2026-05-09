@@ -1,0 +1,28 @@
+{
+  "name": "@showme/backend",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Mastra agent backend for showme.",
+  "type": "module",
+  "scripts": {
+    "dev": "mastra dev",
+    "build": "mastra build",
+    "start": "mastra start",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@ag-ui/client": "^0.0.53",
+    "@ag-ui/core": "^0.0.53",
+    "@ag-ui/mastra": "^1.0.2",
+    "@ai-sdk/anthropic": "^3.0.76",
+    "@copilotkit/runtime": "0.0.0-mme-ag-ui-0-0-46-20260227141603",
+    "@mastra/client-js": "^1.17.1",
+    "@mastra/core": "^1.32.1",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@types/node": "^25.6.2",
+    "mastra": "^1.8.1",
+    "typescript": "^6.0.3"
+  }
+}

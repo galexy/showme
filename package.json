@@ -1,0 +1,14 @@
+{
+  "name": "showme",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Chrome extension that generates bespoke visualizations for selected web content.",
+  "packageManager": "pnpm@9.7.1",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "backend": "pnpm --filter @showme/backend",
+    "extension": "pnpm --filter @showme/extension"
+  }
+}

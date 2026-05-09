@@ -1,0 +1,25 @@
+# LiteLLM proxy config: exposes Anthropic /v1/messages on :4000.
+#
+# Currently routes to the real Anthropic API. To swap back to the local
+# mlx_vlm.server, replace the model_list entry with:
+#   - model_name: claude-sonnet-4-6
+#     litellm_params:
+#       model: openai/unsloth/Qwen3.6-27B-MLX-8bit
+#       api_base: http://localhost:8080/v1
+#       api_key: not-needed
+#
+# Run:
+#   export ANTHROPIC_API_KEY=sk-ant-...
+#   litellm --config backend/litellm.config.yaml --port 4000
+
+model_list:
+  - model_name: claude-sonnet-4-6
+    litellm_params:
+      model: anthropic/claude-sonnet-4-6
+      api_key: os.environ/ANTHROPIC_API_KEY
+      # Pin explicitly so a stray ANTHROPIC_BASE_URL in the env (e.g. from
+      # sourcing backend/.env) can't redirect the upstream call.
+      api_base: https://api.anthropic.com
+
+litellm_settings:
+  drop_params: true

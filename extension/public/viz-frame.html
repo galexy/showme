@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>showme viz frame</title>
+    <style>html,body{margin:0;padding:0;background:#fff}</style>
+  </head>
+  <body>
+    <script>
+      // This page is declared as a sandboxed extension page in the manifest, so
+      // it runs with an opaque origin and the relaxed `content_security_policy.sandbox`
+      // CSP — which is what lets the agent's HTML load cdn.jsdelivr.net libraries
+      // and run inline scripts. The side panel embeds this frame, then posts
+      // { type: 'render', html } once it's loaded.
+      (function () {
+        var rendered = false;
+
+        function notifyParent(msg) {
+          try { parent.postMessage(msg, '*'); } catch (_) {}
+        }
+
+        // Surface load/runtime errors before AND after document.write replaces
+        // the document. Listeners on `window` survive document.write because
+        // the window object persists across the document swap.
+        window.addEventListener('error', function (e) {
+          notifyParent({
+            type: 'error',
+            message: e && e.message ? String(e.message) : 'unknown error',
+            stack: e && e.error && e.error.stack ? String(e.error.stack) : undefined,
+          });
+        });
+        window.addEventListener('unhandledrejection', function (e) {
+          notifyParent({
+            type: 'error',
+            message: e && e.reason ? String(e.reason && e.reason.message ? e.reason.message : e.reason) : 'unhandled rejection',
+            stack: e && e.reason && e.reason.stack ? String(e.reason.stack) : undefined,
+          });
+        });
+
+        window.addEventListener('message', function (e) {
+          var data = e && e.data;
+          if (!data || typeof data !== 'object') return;
+          if (data.type !== 'render' || typeof data.html !== 'string') return;
+          if (rendered) return; // ignore repeats — caller should remount the iframe
+          rendered = true;
+
+          // Replace this document with the agent's HTML. The new document runs
+          // with the same window, origin, and CSP as this page — i.e., the
+          // sandbox CSP from the manifest applies.
+          try {
+            document.open();
+            document.write(data.html);
+            document.close();
+          } catch (err) {
+            notifyParent({
+              type: 'error',
+              message: 'document.write failed: ' + (err && err.message ? err.message : String(err)),
+            });
+            return;
+          }
+
+          // The new document's `load` event will fire after its scripts and
+          // resources finish — that's when we know it's actually rendered.
+          // Listen via window since the previous document's load already fired.
+          if (document.readyState === 'complete') {
+            notifyParent({ type: 'ready' });
+          } else {
+            window.addEventListener('load', function () {
+              notifyParent({ type: 'ready' });
+            });
+          }
+        });
+
+        // Tell the parent we're ready to receive a render call.
+        notifyParent({ type: 'frame-ready' });
+      })();
+    </script>
+  </body>
+</html>

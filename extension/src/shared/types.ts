@@ -26,6 +26,7 @@ export type VizCard = {
 };
 
 export type IframeMessage =
+  | { type: 'frame-ready' }
   | { type: 'ready' }
   | { type: 'error'; message: string; stack?: string }
   | { type: 'log'; level: 'log' | 'warn' | 'error'; args: unknown[] };

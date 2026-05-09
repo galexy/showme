@@ -8,7 +8,10 @@ import type { RenderVisualizationArgs, SelectionPayload, VizCard as VizCardType 
 
 const log = createLogger('sidepanel');
 
-const BACKEND_URL = 'http://localhost:4111/copilotkit';
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL ?? 'http://localhost:4111/copilotkit';
+if (!import.meta.env.VITE_BACKEND_URL) {
+  log.warn('VITE_BACKEND_URL not set; falling back to localhost', { fallback: BACKEND_URL });
+}
 
 function SelectionChip({ selection }: { selection: SelectionPayload }) {
   const { source, kind, parsed } = selection;
@@ -50,7 +53,11 @@ function Inner() {
   const [vizCards, setVizCards] = useState<VizCardType[]>([]);
   const [pickerActive, setPickerActive] = useState(false);
 
-  // Expose selection to agent
+  // useCopilotReadable publishes the selection via AG-UI's `context` field.
+  // The backend's `setContext` callback (in backend/src/mastra/index.ts) pulls
+  // it out and stashes it on the RequestContext so the agent's dynamic
+  // `instructions` can append it — the @ag-ui/mastra adapter doesn't forward
+  // `context` on its own as of 1.0.2.
   useCopilotReadable({
     description: 'Currently captured web content selection from the host page. Use this as the data source for visualizations.',
     value: selection,
@@ -66,6 +73,13 @@ function Inner() {
       { name: 'notes', type: 'string', description: 'Optional explanation shown in chat', required: false },
     ],
     handler: ({ title, html, notes }: RenderVisualizationArgs) => {
+      log.info('render_visualization invoked', {
+        title,
+        htmlLength: html?.length ?? 0,
+        hasHead: html?.includes('<head>') ?? false,
+        hasScript: html?.includes('<script') ?? false,
+        htmlPreview: html?.slice(0, 200),
+      });
       const card: VizCardType = {
         id: crypto.randomUUID(),
         title,
@@ -186,14 +200,10 @@ function Inner() {
         </div>
       )}
 
-      {/* Chat */}
-      <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+      {/* Chat — flex:1 + min-height:0 lets the inner .copilotKitMessages scroll
+          instead of pushing the panel as messages accumulate. */}
+      <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
         <CopilotChat
-          instructions={
-            selection
-              ? `The user has selected content from ${selection.source.url}. Use it as the data source.`
-              : 'Ask the user to select content on the page first (drag text or use "Pick element").'
-          }
           labels={{ title: '', placeholder: 'Ask me to visualize the selection…' }}
         />
       </div>

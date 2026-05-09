@@ -4,6 +4,15 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>showme</title>
+    <style>
+      html, body, #root { height: 100%; margin: 0; }
+      body { overflow: hidden; }
+      /* CopilotKit's .copilotKitChat ships with `height: 100%` commented out;
+         restore it so the inner .copilotKitMessages flex:1 scroller actually
+         has a bounded height and the chat doesn't push the panel. */
+      .copilotKitChat { height: 100%; min-height: 0; flex: 1; }
+      .copilotKitChat .copilotKitMessages { min-height: 0; }
+    </style>
   </head>
   <body>
     <div id="root"></div>

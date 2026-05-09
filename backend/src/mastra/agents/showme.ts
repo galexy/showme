@@ -4,6 +4,7 @@ import {
   parseTableTool,
   extractTextTool,
   renderVisualizationTool,
+  designModulesTool,
 } from '../tools';
 
 const anthropic = createAnthropic({
@@ -26,6 +27,13 @@ Your tools:
   selection contains tabular data and you need clean numbers to drive the viz.
 - extract_text(html): get clean plaintext from prose-heavy HTML. Use when the selection
   is paragraphs/lists and HTML noise is in the way.
+- design_modules(type): returns design guidance, base CSS, and recommended libraries
+  for one of six visualization categories: data_viz, chart, diagram, mockup,
+  interactive, art. The CSS encodes the project's house style (Tufte-influenced
+  for data_viz/chart, system-UI for diagram/mockup/interactive, generative for art).
+  CALL THIS BEFORE render_visualization. Inline the returned CSS into a <style>
+  block in your final HTML and follow the prose guidance for layout, color, and
+  typography decisions.
 - render_visualization(title, html, notes?): YOUR PRIMARY OUTPUT. Emit a complete,
   self-contained HTML document. The user's side panel mounts it in a sandboxed iframe
   (allow-scripts only, no same-origin). You may inline CSS and JS and load D3,
@@ -35,9 +43,12 @@ Your tools:
 Workflow:
 1. If the selection is a table and you need precise numbers, call parse_table first.
 2. If the selection is prose, call extract_text if needed.
-3. Decide the most useful visualization for the data and the user's intent.
-4. Call render_visualization with a complete HTML document. Prefer interactivity
-   (tooltips, hover, brushing) when it adds value over static output.
+3. Pick the visualization category (data_viz / chart / diagram / mockup / interactive
+   / art) that fits the data and the user's intent. Call design_modules with that
+   type to get the house style.
+4. Call render_visualization with a complete HTML document. Inline the design module's
+   CSS into <style>. Prefer interactivity (tooltips, hover, brushing) when it adds
+   value over static output.
 
 Keep any chat-side prose brief: explain the choice you made and any caveats. The
 visualization itself is the main artifact.`,
@@ -45,6 +56,7 @@ visualization itself is the main artifact.`,
   tools: {
     parseTableTool,
     extractTextTool,
+    designModulesTool,
     renderVisualizationTool,
   },
 });

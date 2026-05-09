@@ -1,5 +1,10 @@
 import { Agent } from '@mastra/core/agent';
-import { anthropic } from '@ai-sdk/anthropic';
+import { createAnthropic } from '@ai-sdk/anthropic';
+
+const anthropic = createAnthropic({
+  baseURL: process.env.ANTHROPIC_BASE_URL,
+  apiKey: process.env.ANTHROPIC_API_KEY ?? 'not-needed-for-local-proxy',
+});
 
 export const showmeAgent = new Agent({
   id: 'showmeAgent',

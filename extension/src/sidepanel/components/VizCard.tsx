@@ -150,27 +150,45 @@ export function VizCard({ card, onRemove, onError }: Props) {
         </div>
       )}
 
-      <iframe
-        ref={iframeRef}
-        src={VIZ_FRAME_URL}
-        // The frame is already sandboxed at the manifest level (opaque origin,
-        // restricted CSP). The element-level sandbox attribute is defense-in-
-        // depth: keep `allow-scripts` so JS runs, omit `allow-same-origin` so
-        // the iframe can't reach extension storage or the side panel DOM.
-        sandbox="allow-scripts"
-        onLoad={() => {
-          log.info('iframe DOM onLoad fired', { id: card.id });
-          trySendRender('iframe-onload');
-        }}
-        onError={(err) => log.error('iframe DOM onError', { id: card.id, err })}
+      {/* Wrapper provides the drag handle: CSS `resize: vertical` on a block
+          element with min/max constraints. The iframe fills the wrapper, so
+          dragging the bottom edge resizes the viz without remounting. */}
+      <div
         style={{
           display: status === 'loading' ? 'none' : 'block',
+          resize: 'vertical',
+          overflow: 'hidden',
+          height: 420,
+          minHeight: 160,
+          maxHeight: '80vh',
           width: '100%',
-          height: 280,
-          border: 'none',
+          // Subtle visual affordance for the handle (browsers render their own
+          // resize grip in the bottom-right; this border hints at draggability).
+          borderBottom: '2px solid #e5e7eb',
         }}
-        title={card.title}
-      />
+      >
+        <iframe
+          ref={iframeRef}
+          src={VIZ_FRAME_URL}
+          // The frame is already sandboxed at the manifest level (opaque origin,
+          // restricted CSP). The element-level sandbox attribute is defense-in-
+          // depth: keep `allow-scripts` so JS runs, omit `allow-same-origin` so
+          // the iframe can't reach extension storage or the side panel DOM.
+          sandbox="allow-scripts"
+          onLoad={() => {
+            log.info('iframe DOM onLoad fired', { id: card.id });
+            trySendRender('iframe-onload');
+          }}
+          onError={(err) => log.error('iframe DOM onError', { id: card.id, err })}
+          style={{
+            display: 'block',
+            width: '100%',
+            height: '100%',
+            border: 'none',
+          }}
+          title={card.title}
+        />
+      </div>
 
       {card.notes && (
         <div style={{ padding: '6px 10px', fontSize: 11, color: '#6b7280', borderTop: '1px solid #f3f4f6' }}>

@@ -150,45 +150,34 @@ export function VizCard({ card, onRemove, onError }: Props) {
         </div>
       )}
 
-      {/* Wrapper provides the drag handle: CSS `resize: vertical` on a block
-          element with min/max constraints. The iframe fills the wrapper, so
-          dragging the bottom edge resizes the viz without remounting. */}
-      <div
+      {/* Drag handle lives directly on the iframe via `resize: vertical`. The
+          iframe owns its internal scrolling for content that overflows, so a
+          wrapper would just stack a second scrollbar on top of that. */}
+      <iframe
+        ref={iframeRef}
+        src={VIZ_FRAME_URL}
+        // The frame is already sandboxed at the manifest level (opaque origin,
+        // restricted CSP). The element-level sandbox attribute is defense-in-
+        // depth: keep `allow-scripts` so JS runs, omit `allow-same-origin` so
+        // the iframe can't reach extension storage or the side panel DOM.
+        sandbox="allow-scripts"
+        onLoad={() => {
+          log.info('iframe DOM onLoad fired', { id: card.id });
+          trySendRender('iframe-onload');
+        }}
+        onError={(err) => log.error('iframe DOM onError', { id: card.id, err })}
         style={{
           display: status === 'loading' ? 'none' : 'block',
-          resize: 'vertical',
-          overflow: 'hidden',
+          width: '100%',
           height: 420,
           minHeight: 160,
           maxHeight: '80vh',
-          width: '100%',
-          // Subtle visual affordance for the handle (browsers render their own
-          // resize grip in the bottom-right; this border hints at draggability).
+          border: 'none',
           borderBottom: '2px solid #e5e7eb',
+          resize: 'vertical',
         }}
-      >
-        <iframe
-          ref={iframeRef}
-          src={VIZ_FRAME_URL}
-          // The frame is already sandboxed at the manifest level (opaque origin,
-          // restricted CSP). The element-level sandbox attribute is defense-in-
-          // depth: keep `allow-scripts` so JS runs, omit `allow-same-origin` so
-          // the iframe can't reach extension storage or the side panel DOM.
-          sandbox="allow-scripts"
-          onLoad={() => {
-            log.info('iframe DOM onLoad fired', { id: card.id });
-            trySendRender('iframe-onload');
-          }}
-          onError={(err) => log.error('iframe DOM onError', { id: card.id, err })}
-          style={{
-            display: 'block',
-            width: '100%',
-            height: '100%',
-            border: 'none',
-          }}
-          title={card.title}
-        />
-      </div>
+        title={card.title}
+      />
 
       {card.notes && (
         <div style={{ padding: '6px 10px', fontSize: 11, color: '#6b7280', borderTop: '1px solid #f3f4f6' }}>

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { CopilotKit, useCopilotAction, useCopilotReadable } from '@copilotkit/react-core';
+import { CopilotKit, useCopilotAction, useCopilotChat, useCopilotReadable } from '@copilotkit/react-core';
 import { CopilotChat } from '@copilotkit/react-ui';
 import '@copilotkit/react-ui/styles.css';
 import { createLogger } from '../shared/logger';
@@ -48,10 +48,53 @@ function SelectionChip({ selection }: { selection: SelectionPayload }) {
   );
 }
 
+// Lightweight pulsing dot + label, shown while the agent is mid-stream so
+// the user has feedback during the 5–15s gap between Enter and the first
+// `render_visualization` chunk arriving. Driven by `useCopilotChat().isLoading`.
+function ThinkingIndicator({ label }: { label: string }) {
+  return (
+    <div
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 8,
+        padding: '6px 12px',
+        margin: '6px 12px 0',
+        background: '#f5f3ff',
+        border: '1px solid #ddd6fe',
+        borderRadius: 6,
+        fontSize: 12,
+        color: '#5b21b6',
+        flexShrink: 0,
+      }}
+    >
+      <span
+        style={{
+          width: 8,
+          height: 8,
+          borderRadius: '50%',
+          background: '#8b5cf6',
+          animation: 'showme-pulse 1.2s ease-in-out infinite',
+          flexShrink: 0,
+        }}
+      />
+      <span>{label}</span>
+      <style>{`@keyframes showme-pulse {
+        0%, 100% { opacity: 0.35; transform: scale(0.85); }
+        50%      { opacity: 1;    transform: scale(1.15); }
+      }`}</style>
+    </div>
+  );
+}
+
 function Inner() {
   const [selection, setSelection] = useState<SelectionPayload | null>(null);
   const [vizCards, setVizCards] = useState<VizCardType[]>([]);
   const [pickerActive, setPickerActive] = useState(false);
+  // isLoading flips true the moment the user sends a message and back to
+  // false on RUN_FINISHED. We surface it as a chip so the side panel doesn't
+  // look frozen while the model is generating a long HTML tool-call argument.
+  const { isLoading } = useCopilotChat();
 
   // useCopilotReadable publishes the selection via AG-UI's `context` field.
   // The backend's `setContext` callback (in backend/src/mastra/index.ts) pulls
@@ -199,6 +242,10 @@ function Inner() {
           ))}
         </div>
       )}
+
+      {/* Thinking indicator — shown above the chat so it's visible whether
+          you're scrolled to the bottom of messages or looking at viz cards. */}
+      {isLoading && <ThinkingIndicator label="✦ generating…" />}
 
       {/* Chat — flex:1 + min-height:0 lets the inner .copilotKitMessages scroll
           instead of pushing the panel as messages accumulate. */}

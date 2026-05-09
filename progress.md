@@ -1,6 +1,6 @@
 # showme — progress
 
-Last updated: 2026-05-09 — second pass. After the morning's M1–M4 wire-up, this session fixed two regressions that only showed in the actual side panel UI: (a) the chat container kept growing instead of scrolling internally, and (b) `render_visualization` cards stuck on "Rendering…" because the iframe inherited the strict extension CSP. Both fixed and CDP-verified.
+Last updated: 2026-05-09 — third pass. Session focus was viz-card polish. Compound-interest prompt was end-to-end verified live (logs show `render_visualization invoked` → `Visualization mounted` → `frame-ready` → `Posting render` → `ready` → `Viz rendered` in ~370ms). Two follow-on improvements: (a) silenced the noisy `chart.umd.js.map` `connect-src 'none'` CSP errors that fire whenever DevTools is open; (b) replaced the fixed 280px iframe height with a user-draggable resize handle (default 420px, min 160, max 80vh). See "Viz card polish" below.
 
 ## Milestones (vs. SPEC.md §8)
 
@@ -12,7 +12,7 @@ Last updated: 2026-05-09 — second pass. After the morning's M1–M4 wire-up, t
 | M3 — Element picker | done | Hover-highlight + click capture; `<table>` parsed to `{ headers, rows }`, `<ul>/<ol>` parsed to items. Esc cancels. |
 | M4 — `render_visualization` end-to-end | **done, live** | Selection-aware: seeded a parsed-table selection, sent "make a bar chart", agent emitted `render_visualization` tool call, frontend mounted the `VizCard` iframe with the title "Year vs Value Bar Chart". Follow-up "change the bars to red" produced a second tool call that re-mounted with red bars — so the multi-turn refinement path also works on the wire. **Update (this session):** the wire-level path was working, but in the actual side panel UI every card sat at "Rendering…" forever — the iframe was hitting `script-src 'self'` violations because CRXJS silently strips the manifest's `sandbox`/`content_security_policy` keys. Fixed by re-injecting both keys in a post-build Vite plugin and serving `viz-frame.html` from `public/`; CDP probe now sees `frame-ready` → `ready` → Chart.js self-check OK with zero CSP violations. |
 | M5 — Iterative refinement | partial | Multi-turn refinement (text + tool-call) demonstrated above. *Not* yet implemented: feeding iframe runtime errors back into chat as agent context. Open user-reported bug: input-stuck on second message in the actual side panel UI (not reproducible via CDP — see "Known gaps" below). |
-| M6 — Polish (CSP, size caps, error states, README) | not started | |
+| M6 — Polish (CSP, size caps, error states, README) | in progress | Sandbox CSP now allows `connect-src https://cdn.jsdelivr.net` so DevTools source-map fetches don't spam the console (chart code itself never depended on this — `script-src` already whitelists jsdelivr). VizCard iframe now lives in a `resize: vertical` wrapper, so each viz can be dragged taller — default 420px, clamp 160 / 80vh. Still pending: size caps on agent-emitted HTML, README run instructions, error-state polish. |
 
 ## Deployment / dev environment
 
@@ -48,7 +48,17 @@ The CopilotKit LLM server runs on the user's Mac at `http://192.168.6.166:4000/`
 - Renamed extension entry files to avoid a CRXJS output collision: `src/background/index.ts` → `background.ts`, `src/content/index.ts` → `content.ts`. Distinct filenames fixed the SW-vs-content-script bundle aliasing.
 - Side panel now opens on a single click of the showme action icon (puzzle-piece menu, or pin to toolbar).
 
-### Side panel UI fixes (this session)
+### Viz card polish (this session)
+
+1. **Source-map CSP noise.** Each chart logged two `Connecting to '…/chart.umd.js.map' violates "connect-src 'none'"` errors as soon as DevTools opened. The map fetch goes through `connect-src` (XHR/fetch), not `script-src`, so our previous sandbox CSP — which whitelisted jsdelivr only for scripts — blocked it. Chart rendering was never affected (the `.umd.min.js` itself loaded via `script-src` and `Viz rendered` fired in <400ms), but the console looked broken. **Fix:** in `extension/vite.config.ts` → `patchManifestSandboxCsp`, change `connect-src 'none'` to `connect-src https://cdn.jsdelivr.net`. Because the sandbox runs at an opaque origin and the only same-origin code is the agent's own HTML, the only thing this opens up is map fetches for libraries we already trust as scripts. Verified by re-running the compound-interest prompt — `Viz rendered` fires cleanly with no further CSP errors.
+
+2. **VizCard fixed at 280px.** The agent often emits charts that are unreadable in a 280px-tall iframe (the side panel is already narrow); auto-fitting via ResizeObserver inside the frame fights with Chart.js, which sizes its canvas to fill the parent and produces a feedback loop. **Fix:** put `resize: vertical` directly on the iframe element with `height: 420, minHeight: 160, maxHeight: 80vh` (and bump the default from 280→420 so the first paint is already legible). The browser's native bottom-right resize grip is what the user grabs. We *tried* a wrapper div with the iframe filling it at 100%/100% — but the iframe owns its own scrollbar for overflowing content, so the wrapper just stacked a second scrollbar on top. Going straight on the iframe is simpler and avoids the double-scroll. Caveat: vertical-only — the side panel itself is the horizontal constraint. If the small native grip turns out to be too subtle, swap for a custom thicker grab-bar later.
+
+3. **Agent-thinking indicator.** There's a 5–15s gap between Enter and the first `render_visualization` chunk arriving (the model is generating a ~10kB HTML body for the tool-call argument). CopilotKit's own typing dots only render inside the messages container, so they get hidden behind the viz stack or below the scroll fold — the side panel looked frozen. **Fix:** new `ThinkingIndicator` chip in `App.tsx` driven by `useCopilotChat().isLoading`, anchored above the chat container so it's always in view. Pulsing dot + "✦ generating…" label. Flips off on `RUN_FINISHED`.
+
+   *Open follow-up:* the chip is generic ("generating…"). `useCopilotChat().messages` exposes per-message tool-call status — we could read the latest message and say "generating visualization…" only when a `render_visualization` tool call is mid-stream. Worth doing if the chip starts feeling stale during normal text-only chat turns.
+
+### Side panel UI fixes (previous pass)
 
 Two regressions surfaced once the user actually drove the side panel by hand (CDP probes had been masking both):
 
